@@ -1,0 +1,99 @@
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "esm"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+model Car {
+  id                 Int                 @id @default(autoincrement())
+  name               String              @db.VarChar(100)
+  make               String              @db.VarChar(100)
+  model              String              @db.VarChar(100)
+  licensePlate       String              @unique @db.VarChar(20)
+  vin                String?             @db.VarChar(17)
+  firstRegistration  DateTime?           @db.Date
+  ownedSince         DateTime?           @db.Date
+  apkDueDate         DateTime?           @db.Date
+  notes              String?             @db.Text
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  specs              CarSpec[]
+  fuelUplifts        FuelUplift[]
+  defects            Defect[]
+  maintenanceActions MaintenanceAction[]
+}
+
+model CarSpec {
+  id        Int      @id @default(autoincrement())
+  carId     Int
+  car       Car      @relation(fields: [carId], references: [id], onDelete: Cascade)
+  key       String   @db.VarChar(100)
+  value     String   @db.VarChar(500)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([carId, key])
+}
+
+model FuelUplift {
+  id             Int      @id @default(autoincrement())
+  carId          Int
+  car            Car      @relation(fields: [carId], references: [id], onDelete: Cascade)
+  date           DateTime @db.Date
+  odo            Int
+  volume         Decimal  @db.Decimal(6, 2)
+  totalPrice     Decimal  @db.Decimal(8, 2)
+  fullTank       Boolean  @default(true)
+  missedPrevious Boolean  @default(false)
+  notes          String?  @db.Text
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([carId, odo])
+}
+
+model Defect {
+  id            Int                @id @default(autoincrement())
+  carId         Int
+  car           Car                @relation(fields: [carId], references: [id], onDelete: Cascade)
+  title         String             @db.VarChar(200)
+  description   String?            @db.Text
+  startDate     DateTime           @db.Date
+  startOdo      Int?
+  fixedDate     DateTime?          @db.Date
+  fixedOdo      Int?
+  fixedActionId Int?
+  fixedAction   MaintenanceAction? @relation(fields: [fixedActionId], references: [id], onDelete: SetNull)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+}
+
+enum MaintenanceType {
+  APK
+  SERVICE
+  REPAIR
+  TIRES
+  OTHER
+}
+
+model MaintenanceAction {
+  id           Int             @id @default(autoincrement())
+  carId        Int
+  car          Car             @relation(fields: [carId], references: [id], onDelete: Cascade)
+  type         MaintenanceType
+  title        String          @db.VarChar(200)
+  date         DateTime        @db.Date
+  odo          Int
+  garage       String?         @db.VarChar(200)
+  notes        String?         @db.Text
+  cost         Decimal         @db.Decimal(8, 2)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  fixedDefects Defect[]
+}
