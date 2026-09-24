@@ -1,5 +1,7 @@
 # Car management
 
+**NOTE** This project is 100% vibe-coded :')
+
 Track details, fuel uplifts, defects and maintenance of your cars. See [plan.md](plan.md) for the design.
 
 npm workspaces monorepo:
@@ -28,11 +30,11 @@ The Vite dev server listens on your network too, so you can open it on your phon
 
 Other scripts:
 
-| Command | |
-| --- | --- |
-| `npm test` | Unit tests (shared fuel stats and number parsing, backend auth) |
-| `npm run typecheck` | Type-check all workspaces |
-| `npm run build` | Production build of all workspaces |
+| Command                                          |                                                                  |
+| ------------------------------------------------ | ---------------------------------------------------------------- |
+| `npm test`                                       | Unit tests (shared fuel stats and number parsing, backend auth)  |
+| `npm run typecheck`                              | Type-check all workspaces                                        |
+| `npm run build`                                  | Production build of all workspaces                               |
 | `npm run db:migrate -w backend -- --name <name>` | Create a migration after changing `backend/prisma/schema.prisma` |
 
 ## Deployment
@@ -46,16 +48,16 @@ docker build -f frontend/Dockerfile -t car-management-frontend .
 
 **Backend** (port 3000) applies pending migrations on start. Environment:
 
-| Variable | |
-| --- | --- |
-| `DATABASE_URL` | `mysql://user:password@host:3306/database` |
-| `AUTH_USERNAME` | Login username |
+| Variable             |                                                      |
+| -------------------- | ---------------------------------------------------- |
+| `DATABASE_URL`       | `mysql://user:password@host:3306/database`           |
+| `AUTH_USERNAME`      | Login username                                       |
 | `AUTH_PASSWORD_HASH` | bcrypt hash, from `npm run hash-password -w backend` |
-| `SESSION_SECRET` | At least 32 random characters |
-| `COOKIE_SECURE` | `true` (default) when served over https |
+| `SESSION_SECRET`     | At least 32 random characters                        |
+| `COOKIE_SECURE`      | `true` (default) when served over https              |
 
 bcrypt hashes contain `$`. In a docker-compose file, write each `$` as `$$`.
 
 **Frontend** (port 80) is nginx serving the app and proxying `/api` to `BACKEND_URL` (default `http://backend:3000`). Only expose the frontend; put https in front of it.
 
-On an iPhone, open the site in Safari and choose *Share → Add to Home Screen* to get the app full screen.
+On an iPhone, open the site in Safari and choose _Share → Add to Home Screen_ to get the app full screen.
