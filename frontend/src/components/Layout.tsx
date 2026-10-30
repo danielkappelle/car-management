@@ -1,6 +1,7 @@
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router";
 import { useLogout } from "../queries";
 import { useSelectedCar } from "../selectedCar";
+import { DueBanner } from "./due";
 import { CarIcon, FuelIcon, PlusIcon, WrenchIcon } from "./icons";
 
 const tabs = [
@@ -71,6 +72,7 @@ export function Layout() {
       </header>
 
       <main className="content">
+        {car && !onForm && <DueBanner carId={car.id} />}
         <Outlet />
       </main>
 

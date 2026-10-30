@@ -106,5 +106,39 @@ export const maintenanceActionInput = z.object({
   cost: z.number().min(0).max(999_999),
   /** Defects fixed by this action. Replaces the current set of linked defects. */
   fixedDefectIds: z.array(z.number().int().positive()).default([]),
+  /** Recurring maintenance performed by this action. Replaces the current set of linked schedules. */
+  scheduleIds: z.array(z.number().int().positive()).default([]),
 });
 export type MaintenanceActionInput = z.input<typeof maintenanceActionInput>;
+
+const optionalCount = (min: number, max: number) =>
+  z
+    .number()
+    .int()
+    .min(min)
+    .max(max)
+    .nullish()
+    .transform((value) => value ?? null);
+
+export const maintenanceScheduleInput = z
+  .object({
+    name: requiredText(200),
+    description: optionalText(10_000),
+    type: z.enum(maintenanceTypes),
+    intervalKm: optionalCount(1, 1_000_000),
+    intervalMonths: optionalCount(1, 240),
+    warnKm: optionalCount(0, 1_000_000),
+    warnDays: optionalCount(0, 3_650),
+    startDate: z.iso.date(),
+    startOdo: odo.nullish().transform((value) => value ?? null),
+    active: z.boolean().default(true),
+  })
+  .superRefine((value, ctx) => {
+    if (value.intervalKm === null && value.intervalMonths === null) {
+      ctx.addIssue({ code: "custom", path: ["intervalKm"], message: "Set a distance or time interval" });
+    }
+    if (value.intervalKm !== null && value.startOdo === null) {
+      ctx.addIssue({ code: "custom", path: ["startOdo"], message: "Required for a distance interval" });
+    }
+  });
+export type MaintenanceScheduleInput = z.input<typeof maintenanceScheduleInput>;

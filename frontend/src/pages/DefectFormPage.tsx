@@ -5,6 +5,7 @@ import { Field, FormError, readNumber, Toggle, useFormErrors } from "../componen
 import { PageHeader } from "../components/PageHeader";
 import { LoadError, Loading } from "../components/status";
 import { formatDate, formatKm, todayIso } from "../format";
+import { maintenancePath } from "../maintenanceTab";
 import { useDefectMutations, useDefects, useLatestOdo, useMaintenanceActions } from "../queries";
 import { useCurrentCar } from "../selectedCar";
 
@@ -63,12 +64,15 @@ function DefectForm({
       fixedActionId: byAction ? Number(fixedActionId) : null,
     };
     if (!check(defectInput, body)) return;
-    save.mutate({ id: defect?.id, body }, { onSuccess: () => navigate("/maintenance"), onError: showError });
+    save.mutate(
+      { id: defect?.id, body },
+      { onSuccess: () => navigate(maintenancePath("defects")), onError: showError },
+    );
   };
 
   const onDelete = () => {
     if (defect && window.confirm("Delete this defect?")) {
-      remove.mutate(defect.id, { onSuccess: () => navigate("/maintenance"), onError: showError });
+      remove.mutate(defect.id, { onSuccess: () => navigate(maintenancePath("defects")), onError: showError });
     }
   };
 
@@ -76,7 +80,7 @@ function DefectForm({
 
   return (
     <form className="form form-narrow" onSubmit={onSubmit} noValidate>
-      <PageHeader title={defect ? "Edit defect" : "Add defect"} back="/maintenance" />
+      <PageHeader title={defect ? "Edit defect" : "Add defect"} back={maintenancePath("defects")} />
 
       <div className="card form-stack">
         <Field label="Title" error={errors.title}>

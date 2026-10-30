@@ -1,17 +1,22 @@
-import type {
-  Car,
-  CarInput,
-  CarSpecsInput,
-  CarSummary,
-  Defect,
-  DefectInput,
-  FuelUplift,
-  FuelUpliftInput,
-  MaintenanceAction,
-  MaintenanceActionInput,
+import {
+  averageKmPerDay,
+  type Car,
+  type CarInput,
+  type CarSpecsInput,
+  type CarSummary,
+  type Defect,
+  type DefectInput,
+  type FuelUplift,
+  type FuelUpliftInput,
+  type MaintenanceAction,
+  type MaintenanceActionInput,
+  type MaintenanceSchedule,
+  type MaintenanceScheduleInput,
+  scheduleDue,
 } from "@car/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError, api } from "./api";
+import { todayIso } from "./format";
 
 export const keys = {
   me: ["me"] as const,
@@ -20,6 +25,7 @@ export const keys = {
   fuel: (carId: number) => ["cars", carId, "fuel"] as const,
   defects: (carId: number) => ["cars", carId, "defects"] as const,
   maintenance: (carId: number) => ["cars", carId, "maintenance"] as const,
+  schedules: (carId: number) => ["cars", carId, "schedules"] as const,
 };
 
 export function useMe() {
@@ -75,6 +81,12 @@ export const useMaintenanceActions = (carId: number) =>
   useQuery({
     queryKey: keys.maintenance(carId),
     queryFn: () => api<MaintenanceAction[]>(`/cars/${carId}/maintenance`),
+  });
+
+export const useSchedules = (carId: number) =>
+  useQuery({
+    queryKey: keys.schedules(carId),
+    queryFn: () => api<MaintenanceSchedule[]>(`/cars/${carId}/schedules`),
   });
 
 export function useSaveCar() {
@@ -137,16 +149,37 @@ export const useFuelMutations = (carId: number) =>
 export const useDefectMutations = (carId: number) =>
   useCarResource<DefectInput>(carId, "defects", [keys.defects(carId), keys.maintenance(carId)]);
 
+// Logging an action for recurring maintenance resets its interval.
 export const useMaintenanceMutations = (carId: number) =>
   useCarResource<MaintenanceActionInput>(carId, "maintenance", [
     keys.defects(carId),
     keys.maintenance(carId),
+    keys.schedules(carId),
   ]);
+
+export const useScheduleMutations = (carId: number) =>
+  useCarResource<MaintenanceScheduleInput>(carId, "schedules", [keys.schedules(carId), keys.maintenance(carId)]);
+
+/** Known odometer readings of a car, from fuel uplifts and maintenance actions. */
+function useOdoReadings(carId: number): { date: string; odo: number }[] {
+  const fuel = useFuelUplifts(carId);
+  const maintenance = useMaintenanceActions(carId);
+  return [...(fuel.data ?? []), ...(maintenance.data ?? [])];
+}
 
 /** Highest known odometer reading of a car, from fuel uplifts and maintenance actions. */
 export function useLatestOdo(carId: number): number | null {
-  const fuel = useFuelUplifts(carId);
-  const maintenance = useMaintenanceActions(carId);
-  const readings = [...(fuel.data ?? []), ...(maintenance.data ?? [])].map((record) => record.odo);
+  const readings = useOdoReadings(carId).map((record) => record.odo);
   return readings.length > 0 ? Math.max(...readings) : null;
+}
+
+/** Recurring maintenance of a car with when each is due, undefined while loading. */
+export function useScheduleDues(carId: number) {
+  const schedules = useSchedules(carId);
+  const readings = useOdoReadings(carId);
+  const latestOdo = useLatestOdo(carId);
+  if (!schedules.data) return undefined;
+
+  const context = { today: todayIso(), latestOdo, kmPerDay: averageKmPerDay(readings) };
+  return schedules.data.map((schedule) => ({ schedule, due: scheduleDue(schedule, context) }));
 }

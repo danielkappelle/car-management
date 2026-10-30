@@ -8,6 +8,8 @@ const dateFormat = new Intl.DateTimeFormat(LOCALE, {
   timeZone: "UTC",
 });
 
+const monthFormat = new Intl.DateTimeFormat(LOCALE, { month: "short", year: "numeric", timeZone: "UTC" });
+
 export const formatCurrency = (value: number) => currency.format(value);
 
 export const formatNumber = (value: number, decimals = 0) =>
@@ -17,6 +19,9 @@ export const formatKm = (value: number) => `${formatNumber(value)} km`;
 
 /** Formats an ISO `YYYY-MM-DD` date. */
 export const formatDate = (value: string) => dateFormat.format(new Date(`${value}T00:00:00Z`));
+
+/** Formats the month of an ISO `YYYY-MM-DD` date. */
+export const formatMonth = (value: string) => monthFormat.format(new Date(`${value}T00:00:00Z`));
 
 /** Today as ISO `YYYY-MM-DD`, in the user's local timezone. */
 export function todayIso(): string {

@@ -3,29 +3,42 @@ import {
   type MaintenanceAction,
   type MaintenanceActionInput,
   maintenanceActionInput,
+  type MaintenanceSchedule,
   type MaintenanceType,
   maintenanceTypeLabels,
   maintenanceTypes,
 } from "@car/shared";
 import { type FormEvent, useState } from "react";
-import { useNavigate, useParams } from "react-router";
+import { useNavigate, useParams, useSearchParams } from "react-router";
 import { carToInput } from "../cars";
 import { Field, FormError, readNumber, Toggle, useFormErrors } from "../components/form";
 import { PageHeader } from "../components/PageHeader";
 import { LoadError, Loading } from "../components/status";
 import { addYears, formatDate, formatKm, toInputDecimal, todayIso } from "../format";
-import { useCar, useDefects, useLatestOdo, useMaintenanceActions, useMaintenanceMutations, useSaveCar } from "../queries";
+import { maintenancePath } from "../maintenanceTab";
+import {
+  useCar,
+  useDefects,
+  useLatestOdo,
+  useMaintenanceActions,
+  useMaintenanceMutations,
+  useSaveCar,
+  useSchedules,
+} from "../queries";
 import { useCurrentCar } from "../selectedCar";
 
 export function MaintenanceActionFormPage() {
   const { id: carId } = useCurrentCar();
   const params = useParams();
+  const [searchParams] = useSearchParams();
   const actions = useMaintenanceActions(carId);
   const defects = useDefects(carId);
+  const schedules = useSchedules(carId);
 
-  if (actions.isPending || defects.isPending) return <Loading />;
+  if (actions.isPending || defects.isPending || schedules.isPending) return <Loading />;
   if (actions.isError) return <LoadError error={actions.error} />;
   if (defects.isError) return <LoadError error={defects.error} />;
+  if (schedules.isError) return <LoadError error={schedules.error} />;
 
   const actionId = params.id === undefined ? undefined : Number(params.id);
   const action = actions.data.find((a) => a.id === actionId);
@@ -33,18 +46,33 @@ export function MaintenanceActionFormPage() {
     return <p className="form-error">Maintenance action not found.</p>;
   }
   const garages = [...new Set(actions.data.map((a) => a.garage).filter((g): g is string => Boolean(g)))];
-  return <ActionForm carId={carId} action={action} defects={defects.data} garages={garages} />;
+  // Logging from a recurring maintenance prefills the action with it.
+  const fromSchedule = action ? undefined : schedules.data.find((s) => s.id === Number(searchParams.get("schedule")));
+  return (
+    <ActionForm
+      carId={carId}
+      action={action}
+      defects={defects.data}
+      schedules={schedules.data}
+      fromSchedule={fromSchedule}
+      garages={garages}
+    />
+  );
 }
 
 function ActionForm({
   carId,
   action,
   defects,
+  schedules,
+  fromSchedule,
   garages,
 }: {
   carId: number;
   action?: MaintenanceAction;
   defects: Defect[];
+  schedules: MaintenanceSchedule[];
+  fromSchedule?: MaintenanceSchedule;
   garages: string[];
 }) {
   const navigate = useNavigate();
@@ -54,27 +82,32 @@ function ActionForm({
   const { save, remove } = useMaintenanceMutations(carId);
   const { errors, formError, check, showError } = useFormErrors();
 
-  const [type, setType] = useState<MaintenanceType>(action?.type ?? "SERVICE");
-  const [title, setTitle] = useState(action?.title ?? "");
+  const [type, setType] = useState<MaintenanceType>(action?.type ?? fromSchedule?.type ?? "SERVICE");
+  const [title, setTitle] = useState(action?.title ?? fromSchedule?.name ?? "");
   const [date, setDate] = useState(action?.date ?? todayIso());
   const [odo, setOdo] = useState(action?.odo.toString() ?? "");
   const [cost, setCost] = useState(action ? toInputDecimal(action.cost) : "");
   const [garage, setGarage] = useState(action?.garage ?? "");
   const [notes, setNotes] = useState(action?.notes ?? "");
   const [fixedDefectIds, setFixedDefectIds] = useState(() => new Set(action?.fixedDefects.map((d) => d.id)));
+  const [scheduleIds, setScheduleIds] = useState(
+    () => new Set(action ? action.schedules.map((s) => s.id) : fromSchedule ? [fromSchedule.id] : []),
+  );
   // Logging a new APK offers to move the car's APK due date a year ahead.
   const [updateApk, setUpdateApk] = useState(!action);
   const [apkDueDate, setApkDueDate] = useState<string | null>(null);
 
   // Defects that can be linked: open ones, plus the ones this action already fixes.
   const linkableDefects = defects.filter((d) => !d.fixedDate || d.fixedActionId === action?.id);
+  // Schedules that can be linked: active ones, plus the ones this action already performs.
+  const linkableSchedules = schedules.filter((s) => s.active || scheduleIds.has(s.id));
   const showApk = type === "APK" && car.data !== undefined;
 
-  const toggleDefect = (id: number, checked: boolean) => {
-    const next = new Set(fixedDefectIds);
+  const toggle = (ids: Set<number>, id: number, checked: boolean) => {
+    const next = new Set(ids);
     if (checked) next.add(id);
     else next.delete(id);
-    setFixedDefectIds(next);
+    return next;
   };
 
   const onSubmit = async (event: FormEvent) => {
@@ -88,6 +121,7 @@ function ActionForm({
       garage: garage || null,
       notes: notes || null,
       fixedDefectIds: [...fixedDefectIds],
+      scheduleIds: [...scheduleIds],
     };
     if (!check(maintenanceActionInput, body)) return;
     try {
@@ -98,7 +132,7 @@ function ActionForm({
           body: { ...carToInput(car.data), apkDueDate: apkDueDate ?? addYears(date, 1) },
         });
       }
-      navigate("/maintenance");
+      navigate(maintenancePath("actions"));
     } catch (error) {
       showError(error);
     }
@@ -106,13 +140,13 @@ function ActionForm({
 
   const onDelete = () => {
     if (action && window.confirm("Delete this maintenance action? Defects it fixed become open again.")) {
-      remove.mutate(action.id, { onSuccess: () => navigate("/maintenance"), onError: showError });
+      remove.mutate(action.id, { onSuccess: () => navigate(maintenancePath("actions")), onError: showError });
     }
   };
 
   return (
     <form className="form form-narrow" onSubmit={onSubmit} noValidate>
-      <PageHeader title={action ? "Edit maintenance" : "Add maintenance"} back="/maintenance" />
+      <PageHeader title={action ? "Edit maintenance" : "Add maintenance"} back={maintenancePath("actions")} />
 
       <div className="card form-stack">
         <div className="form-row">
@@ -181,6 +215,22 @@ function ActionForm({
         </div>
       )}
 
+      {linkableSchedules.length > 0 && (
+        <fieldset className="card form-stack">
+          <legend>Recurring maintenance performed</legend>
+          {linkableSchedules.map((schedule) => (
+            <label key={schedule.id} className="checkbox">
+              <input
+                type="checkbox"
+                checked={scheduleIds.has(schedule.id)}
+                onChange={(event) => setScheduleIds(toggle(scheduleIds, schedule.id, event.target.checked))}
+              />
+              {schedule.name}
+            </label>
+          ))}
+        </fieldset>
+      )}
+
       {linkableDefects.length > 0 && (
         <fieldset className="card form-stack">
           <legend>Defects fixed by this action</legend>
@@ -189,7 +239,7 @@ function ActionForm({
               <input
                 type="checkbox"
                 checked={fixedDefectIds.has(defect.id)}
-                onChange={(event) => toggleDefect(defect.id, event.target.checked)}
+                onChange={(event) => setFixedDefectIds(toggle(fixedDefectIds, defect.id, event.target.checked))}
               />
               {defect.title}
             </label>

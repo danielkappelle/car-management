@@ -6,6 +6,7 @@ import { carsRouter } from "./routes/cars.js";
 import { defectsRouter } from "./routes/defects.js";
 import { fuelRouter } from "./routes/fuel.js";
 import { maintenanceRouter } from "./routes/maintenance.js";
+import { schedulesRouter } from "./routes/schedules.js";
 
 export function createApp() {
   const app = express();
@@ -26,6 +27,7 @@ export function createApp() {
   api.use("/cars/:carId/fuel", fuelRouter);
   api.use("/cars/:carId/defects", defectsRouter);
   api.use("/cars/:carId/maintenance", maintenanceRouter);
+  api.use("/cars/:carId/schedules", schedulesRouter);
   app.use("/api", api);
 
   app.use(() => {

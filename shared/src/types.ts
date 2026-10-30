@@ -59,4 +59,22 @@ export interface MaintenanceAction {
   notes: string | null;
   cost: number;
   fixedDefects: { id: number; title: string }[];
+  schedules: { id: number; name: string }[];
+}
+
+export interface MaintenanceSchedule {
+  id: number;
+  carId: number;
+  name: string;
+  description: string | null;
+  type: MaintenanceType;
+  intervalKm: number | null;
+  intervalMonths: number | null;
+  warnKm: number | null;
+  warnDays: number | null;
+  startDate: string;
+  startOdo: number | null;
+  active: boolean;
+  /** Most recent action that performed this maintenance, the interval counts from there. */
+  lastAction: { id: number; date: string; odo: number } | null;
 }

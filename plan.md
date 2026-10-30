@@ -117,13 +117,34 @@ A defect is open while fixedDate is empty.
 
 When an APK action is saved, the user is prompted to update the car's apkDueDate.
 
+## MaintenanceSchedule
+
+Recurring maintenance, e.g. "oil change every 15,000 km or 12 months".
+
+- id: int, autoincrement
+- carId: int --> foreign key of car
+- name: string
+- description: text, optional
+- type: MaintenanceType (default type for actions logged for it)
+- intervalKm: int, optional
+- intervalMonths: int, optional (at least one interval is required; with both, whichever comes first)
+- warnKm: int, optional (default 1000)
+- warnDays: int, optional (default 30)
+- startDate: date, startOdo: int (when it was last done before tracking, or when to start counting)
+- active: boolean, default true
+- actions: many-to-many with maintenanceAction (one action can perform several schedules)
+
+The last performed date and odo are not stored: the interval counts from the most recent linked action, or from the start when there is none. Editing or deleting an action therefore resets the interval automatically. When it is due is computed in `shared/src/schedule.ts`, against the latest known odometer reading. For distance intervals the date it will be reached is estimated from the average distance per day over the last year.
+
+A banner on every page (except forms) warns about recurring maintenance that is due soon or overdue, and about the APK when it is due within 60 days.
+
 # Layout and other considerations
 
 The layout should be simple and clean. Tabs:
 
 - **Details** — car info and specs
 - **Fuel** — fuel uplifts, consumption and price insights
-- **Maintenance** — combines defects and maintenance actions in two panes (stacked on phone)
+- **Maintenance** — sub-tabs for recurring maintenance, defects and maintenance actions (the last used one is remembered)
 
 A car is selected once in the navigation (no need to reselect it in every tab). The selection is remembered in localStorage.
 
@@ -139,5 +160,4 @@ The views must be optimized for both pc and smart phone (iPhone). Especially the
 
 # Future ideas
 
-- service reminders based on next due date / odo
 - attachments (photos of receipts and invoices)

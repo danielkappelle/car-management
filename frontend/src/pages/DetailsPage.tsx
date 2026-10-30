@@ -1,10 +1,11 @@
 import { type Car, carSpecsInput } from "@car/shared";
 import { type FormEvent, useState } from "react";
 import { Link, useNavigate } from "react-router";
+import { ApkBadge } from "../components/due";
 import { FormError, useFormErrors } from "../components/form";
 import { PageHeader } from "../components/PageHeader";
 import { LoadError, Loading } from "../components/status";
-import { daysUntil, formatDate } from "../format";
+import { formatDate } from "../format";
 import { useCar, useDeleteCar, useSaveSpecs } from "../queries";
 import { useCurrentCar } from "../selectedCar";
 
@@ -27,13 +28,6 @@ export function DetailsPage() {
   if (car.isPending) return <Loading />;
   if (car.isError) return <LoadError error={car.error} />;
   return <CarDetails car={car.data} />;
-}
-
-function ApkBadge({ date }: { date: string }) {
-  const days = daysUntil(date);
-  if (days < 0) return <span className="badge badge-danger">Overdue</span>;
-  if (days <= 60) return <span className="badge badge-warning">In {days} days</span>;
-  return null;
 }
 
 function CarDetails({ car }: { car: Car }) {

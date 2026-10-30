@@ -1,4 +1,4 @@
-import type { Car, CarSummary, Defect, FuelUplift, MaintenanceAction } from "@car/shared";
+import type { Car, CarSummary, Defect, FuelUplift, MaintenanceAction, MaintenanceSchedule } from "@car/shared";
 import type * as db from "./generated/prisma/client.js";
 import { fromDate } from "./http.js";
 
@@ -53,7 +53,10 @@ export function serializeDefect(defect: db.Defect): Defect {
 }
 
 export function serializeMaintenanceAction(
-  action: db.MaintenanceAction & { fixedDefects: Pick<db.Defect, "id" | "title">[] },
+  action: db.MaintenanceAction & {
+    fixedDefects: Pick<db.Defect, "id" | "title">[];
+    schedules: Pick<db.MaintenanceSchedule, "id" | "name">[];
+  },
 ): MaintenanceAction {
   return {
     id: action.id,
@@ -66,5 +69,27 @@ export function serializeMaintenanceAction(
     notes: action.notes,
     cost: action.cost.toNumber(),
     fixedDefects: action.fixedDefects.map(({ id, title }) => ({ id, title })),
+    schedules: action.schedules.map(({ id, name }) => ({ id, name })),
+  };
+}
+
+export function serializeSchedule(
+  schedule: db.MaintenanceSchedule & { actions: Pick<db.MaintenanceAction, "id" | "date" | "odo">[] },
+): MaintenanceSchedule {
+  const lastAction = schedule.actions[0];
+  return {
+    id: schedule.id,
+    carId: schedule.carId,
+    name: schedule.name,
+    description: schedule.description,
+    type: schedule.type,
+    intervalKm: schedule.intervalKm,
+    intervalMonths: schedule.intervalMonths,
+    warnKm: schedule.warnKm,
+    warnDays: schedule.warnDays,
+    startDate: fromDate(schedule.startDate),
+    startOdo: schedule.startOdo,
+    active: schedule.active,
+    lastAction: lastAction ? { id: lastAction.id, date: fromDate(lastAction.date), odo: lastAction.odo } : null,
   };
 }

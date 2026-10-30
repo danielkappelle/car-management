@@ -8,15 +8,16 @@ import { findCar } from "./util.js";
 
 export const maintenanceRouter = Router({ mergeParams: true });
 
-const withDefects = {
+const withLinks = {
   fixedDefects: { select: { id: true, title: true }, orderBy: { id: "asc" } },
+  schedules: { select: { id: true, name: true }, orderBy: { name: "asc" } },
 } as const;
 
 const unfixed = { fixedActionId: null, fixedDate: null, fixedOdo: null };
 
 function parseAction(body: unknown) {
-  const { fixedDefectIds, ...input } = maintenanceActionInput.parse(body);
-  return { fixedDefectIds, data: { ...input, date: toDate(input.date) } };
+  const { fixedDefectIds, scheduleIds, ...input } = maintenanceActionInput.parse(body);
+  return { fixedDefectIds, scheduleIds, data: { ...input, date: toDate(input.date) } };
 }
 
 async function assertDefectsBelongToCar(defectIds: number[], carId: number) {
@@ -25,6 +26,15 @@ async function assertDefectsBelongToCar(defectIds: number[], carId: number) {
     throw new HttpError(400, "Defect not found for this car");
   }
 }
+
+async function assertSchedulesBelongToCar(scheduleIds: number[], carId: number) {
+  const count = await prisma.maintenanceSchedule.count({ where: { id: { in: scheduleIds }, carId } });
+  if (count !== new Set(scheduleIds).size) {
+    throw new HttpError(400, "Recurring maintenance not found for this car");
+  }
+}
+
+const scheduleLinks = (scheduleIds: number[]) => scheduleIds.map((id) => ({ id }));
 
 /** Makes `defectIds` exactly the set of defects fixed by the action. */
 async function linkDefects(
@@ -47,36 +57,40 @@ maintenanceRouter.get("/", async (req, res) => {
   const actions = await prisma.maintenanceAction.findMany({
     where: { carId: car.id },
     orderBy: [{ date: "desc" }, { id: "desc" }],
-    include: withDefects,
+    include: withLinks,
   });
   res.json(actions.map(serializeMaintenanceAction));
 });
 
 maintenanceRouter.post("/", async (req, res) => {
   const car = await findCar(req.params);
-  const { data, fixedDefectIds } = parseAction(req.body);
+  const { data, fixedDefectIds, scheduleIds } = parseAction(req.body);
   await assertDefectsBelongToCar(fixedDefectIds, car.id);
+  await assertSchedulesBelongToCar(scheduleIds, car.id);
 
   const action = await prisma.$transaction(async (tx) => {
-    const created = await tx.maintenanceAction.create({ data: { ...data, carId: car.id } });
+    const created = await tx.maintenanceAction.create({
+      data: { ...data, carId: car.id, schedules: { connect: scheduleLinks(scheduleIds) } },
+    });
     await linkDefects(tx, created, fixedDefectIds);
-    return tx.maintenanceAction.findUniqueOrThrow({ where: { id: created.id }, include: withDefects });
+    return tx.maintenanceAction.findUniqueOrThrow({ where: { id: created.id }, include: withLinks });
   });
   res.status(201).json(serializeMaintenanceAction(action));
 });
 
 maintenanceRouter.put("/:id", async (req, res) => {
   const car = await findCar(req.params);
-  const { data, fixedDefectIds } = parseAction(req.body);
+  const { data, fixedDefectIds, scheduleIds } = parseAction(req.body);
   await assertDefectsBelongToCar(fixedDefectIds, car.id);
+  await assertSchedulesBelongToCar(scheduleIds, car.id);
 
   const action = await prisma.$transaction(async (tx) => {
     const updated = await tx.maintenanceAction.update({
       where: { id: parseId(req.params.id), carId: car.id },
-      data,
+      data: { ...data, schedules: { set: scheduleLinks(scheduleIds) } },
     });
     await linkDefects(tx, updated, fixedDefectIds);
-    return tx.maintenanceAction.findUniqueOrThrow({ where: { id: updated.id }, include: withDefects });
+    return tx.maintenanceAction.findUniqueOrThrow({ where: { id: updated.id }, include: withLinks });
   });
   res.json(serializeMaintenanceAction(action));
 });

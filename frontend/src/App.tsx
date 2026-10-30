@@ -10,6 +10,7 @@ import { FuelPage } from "./pages/FuelPage";
 import { LoginPage } from "./pages/LoginPage";
 import { MaintenanceActionFormPage } from "./pages/MaintenanceActionFormPage";
 import { MaintenancePage } from "./pages/MaintenancePage";
+import { MaintenanceScheduleFormPage } from "./pages/MaintenanceScheduleFormPage";
 import { NoCarsPage } from "./pages/NoCarsPage";
 import { useCars, useMe } from "./queries";
 import { SelectedCarProvider, useSelectedCar } from "./selectedCar";
@@ -67,6 +68,8 @@ export function App() {
           <Route path="/maintenance/defects/:id" element={<DefectFormPage />} />
           <Route path="/maintenance/actions/new" element={<MaintenanceActionFormPage />} />
           <Route path="/maintenance/actions/:id" element={<MaintenanceActionFormPage />} />
+          <Route path="/maintenance/schedules/new" element={<MaintenanceScheduleFormPage />} />
+          <Route path="/maintenance/schedules/:id" element={<MaintenanceScheduleFormPage />} />
           <Route path="*" element={<Navigate to="/fuel" replace />} />
         </Route>
       </Route>

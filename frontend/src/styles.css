@@ -734,6 +734,82 @@ legend {
   background: var(--warning-soft);
 }
 
+/* Segmented tabs */
+
+.segmented {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  margin: 0 0 16px;
+  background: var(--surface-2);
+  border-radius: var(--radius);
+}
+
+.segmented button {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 8px 6px;
+  font: inherit;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  border-radius: calc(var(--radius) - 4px);
+}
+
+.segmented button[aria-selected="true"] {
+  color: var(--text);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+@media (min-width: 640px) {
+  .segmented {
+    display: inline-flex;
+  }
+
+  .segmented button {
+    flex: none;
+    padding: 8px 16px;
+  }
+}
+
+/* Due banner */
+
+.due-banner {
+  display: block;
+  padding: 10px 14px;
+  margin: 0 0 16px;
+  color: var(--text);
+  text-decoration: none;
+  background: var(--warning-soft);
+  border: 1px solid var(--warning);
+  border-radius: var(--radius);
+}
+
+.due-banner-overdue {
+  background: var(--danger-soft);
+  border-color: var(--danger);
+}
+
+.due-banner ul {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.due-banner .badge {
+  background: var(--surface);
+}
+
 /* Lists */
 
 .list {
